@@ -9,8 +9,10 @@ import {
 import {
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { ApiData } from '../../common/decorators/api-response.decorators';
 import { ErrorResponseDto } from '../../common/dto/response-envelope.dto';
 import { Auth } from './decorators/auth.decorator';
@@ -27,9 +29,11 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Log in, issue JWT' })
   @ApiData(AuthTokenDto, 200)
   @ApiUnauthorizedResponse({ type: ErrorResponseDto })
+  @ApiTooManyRequestsResponse({ type: ErrorResponseDto })
   login(@Body() dto: LoginDto): Promise<{ accessToken: string }> {
     return this.authService.login(dto);
   }
