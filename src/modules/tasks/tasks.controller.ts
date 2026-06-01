@@ -4,10 +4,10 @@ import {
   Delete,
   Get,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { TransactionManager } from '../../common/decorators/transaction-manager.decorator';
@@ -16,10 +16,12 @@ import { PaginatedResult } from '../../common/interfaces/paginated-result.interf
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/interfaces/jwt-payload.interface';
+import { CurrentTask } from './decorators/current-task.decorator';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { Task } from './entities/task.entity';
+import { OwnershipGuard } from './guards/ownership.guard';
 import { TasksService } from './tasks.service';
 
 @Controller('tasks')
@@ -46,31 +48,29 @@ export class TasksController {
   }
 
   @Get(':id')
-  findOne(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<Task> {
-    return this.tasksService.findOne(user.userId, id);
+  @UseGuards(OwnershipGuard)
+  findOne(@CurrentTask() task: Task): Task {
+    return task;
   }
 
   @Patch(':id')
+  @UseGuards(OwnershipGuard)
   @Transactional()
   update(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateTaskDto,
     @TransactionManager() manager: EntityManager,
   ): Promise<Task> {
-    return this.tasksService.update(user.userId, id, dto, manager);
+    return this.tasksService.update(id, dto, manager);
   }
 
   @Delete(':id')
+  @UseGuards(OwnershipGuard)
   @Transactional()
   remove(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @TransactionManager() manager: EntityManager,
   ): Promise<void> {
-    return this.tasksService.remove(user.userId, id, manager);
+    return this.tasksService.remove(id, manager);
   }
 }

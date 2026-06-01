@@ -50,16 +50,8 @@ export class TasksService {
     };
   }
 
-  async findOne(
-    ownerId: string,
-    id: string,
-    manager?: EntityManager,
-  ): Promise<Task> {
-    const task = await this.tasksRepository.findByIdAndOwner(
-      id,
-      ownerId,
-      manager,
-    );
+  async findOne(id: string, manager?: EntityManager): Promise<Task> {
+    const task = await this.tasksRepository.findById(id, manager);
     if (!task) {
       throw new NotFoundException('task_not_found');
     }
@@ -67,23 +59,18 @@ export class TasksService {
   }
 
   async update(
-    ownerId: string,
     id: string,
     dto: UpdateTaskDto,
     manager?: EntityManager,
   ): Promise<Task> {
-    const task = await this.findOne(ownerId, id, manager);
+    const task = await this.findOne(id, manager);
     Object.assign(task, dto);
     await this.tasksRepository.save(task, manager);
-    return this.findOne(ownerId, id, manager);
+    return this.findOne(id, manager);
   }
 
-  async remove(
-    ownerId: string,
-    id: string,
-    manager?: EntityManager,
-  ): Promise<void> {
-    const task = await this.findOne(ownerId, id, manager);
+  async remove(id: string, manager?: EntityManager): Promise<void> {
+    const task = await this.findOne(id, manager);
     await this.tasksRepository.remove(task, manager);
   }
 }

@@ -29,8 +29,8 @@ export class TasksRepository {
     });
   }
 
-  findByIdAndOwner(id: string, ownerId: string, manager?: EntityManager) {
-    return this.scope(manager).findOne({ where: { id, ownerId } });
+  findById(id: string, manager?: EntityManager) {
+    return this.scope(manager).findOne({ where: { id } });
   }
 
   create(
