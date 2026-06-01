@@ -47,6 +47,14 @@ export class TasksController {
     return this.tasksService.findAll(user.userId, query);
   }
 
+  @Get('archived')
+  findArchived(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: QueryTasksDto,
+  ): Promise<PaginatedResult<Task>> {
+    return this.tasksService.findArchived(user.userId, query);
+  }
+
   @Get(':id')
   @UseGuards(OwnershipGuard)
   findOne(@CurrentTask() task: Task): Task {
@@ -71,6 +79,6 @@ export class TasksController {
     @Param('id') id: string,
     @TransactionManager() manager: EntityManager,
   ): Promise<void> {
-    return this.tasksService.remove(id, manager);
+    return this.tasksService.archive(id, manager);
   }
 }

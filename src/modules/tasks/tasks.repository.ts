@@ -1,8 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import {
+  EntityManager,
+  FindOptionsWhere,
+  IsNull,
+  LessThan,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { Task } from './entities/task.entity';
 import { TaskStatus } from './enums/task-status.enum';
+
+interface ListOptions {
+  status?: TaskStatus;
+  skip: number;
+  take: number;
+}
 
 @Injectable()
 export class TasksRepository {
@@ -11,19 +24,31 @@ export class TasksRepository {
     private readonly repository: Repository<Task>,
   ) {}
 
-  findAndCountByOwner(
+  findAndCountActive(
     ownerId: string,
-    options: { status?: TaskStatus; skip: number; take: number },
+    options: ListOptions,
     manager?: EntityManager,
   ) {
-    const where: FindOptionsWhere<Task> = { ownerId };
-    if (options.status) {
-      where.status = options.status;
-    }
-
     return this.scope(manager).findAndCount({
-      where,
+      where: this.ownerWhere(ownerId, options.status, IsNull()),
       order: { createdAt: 'DESC' },
+      skip: options.skip,
+      take: options.take,
+    });
+  }
+
+  findAndCountArchived(
+    ownerId: string,
+    options: ListOptions & { cutoff: Date },
+    manager?: EntityManager,
+  ) {
+    return this.scope(manager).findAndCount({
+      where: this.ownerWhere(
+        ownerId,
+        options.status,
+        MoreThanOrEqual(options.cutoff),
+      ),
+      order: { archivedAt: 'DESC' },
       skip: options.skip,
       take: options.take,
     });
@@ -46,8 +71,23 @@ export class TasksRepository {
     return this.scope(manager).save(task);
   }
 
-  remove(task: Task, manager?: EntityManager) {
-    return this.scope(manager).remove(task);
+  async deleteExpired(cutoff: Date, manager?: EntityManager): Promise<number> {
+    const result = await this.scope(manager).delete({
+      archivedAt: LessThan(cutoff),
+    });
+    return result.affected ?? 0;
+  }
+
+  private ownerWhere(
+    ownerId: string,
+    status: TaskStatus | undefined,
+    archivedAt: FindOptionsWhere<Task>['archivedAt'],
+  ): FindOptionsWhere<Task> {
+    const where: FindOptionsWhere<Task> = { ownerId, archivedAt };
+    if (status) {
+      where.status = status;
+    }
+    return where;
   }
 
   private scope(manager?: EntityManager): Repository<Task> {

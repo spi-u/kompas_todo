@@ -11,10 +11,14 @@ import { FastifyRequest } from 'fastify';
 import { AuthenticatedUser } from '../../auth/interfaces/jwt-payload.interface';
 import { Task } from '../entities/task.entity';
 import { TasksRepository } from '../tasks.repository';
+import { TasksService } from '../tasks.service';
 
 @Injectable()
 export class OwnershipGuard implements CanActivate {
-  constructor(private readonly tasksRepository: TasksRepository) {}
+  constructor(
+    private readonly tasksRepository: TasksRepository,
+    private readonly tasksService: TasksService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<
@@ -31,7 +35,7 @@ export class OwnershipGuard implements CanActivate {
     }
 
     const task = await this.tasksRepository.findById(id);
-    if (!task) {
+    if (!task || this.tasksService.isExpired(task)) {
       throw new NotFoundException('task_not_found');
     }
     if (task.ownerId !== request.user.userId) {

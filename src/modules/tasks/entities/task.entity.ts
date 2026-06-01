@@ -31,6 +31,9 @@ export class Task {
   @Column()
   ownerId: string;
 
+  @Column({ type: 'timestamp', nullable: true })
+  archivedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
