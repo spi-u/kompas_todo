@@ -4,4 +4,8 @@ export default () => ({
   database: {
     url: process.env.DB_URL ?? 'postgres://todo:todo@localhost:5432/todo',
   },
+  jwt: {
+    secret: process.env.JWT_SECRET ?? 'change-me',
+    expiresIn: process.env.JWT_EXPIRES_IN ?? '1d',
+  },
 });

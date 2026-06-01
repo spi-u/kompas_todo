@@ -16,6 +16,12 @@ export class EnvironmentVariables {
 
   @IsString()
   DB_URL: string;
+
+  @IsString()
+  JWT_SECRET: string;
+
+  @IsString()
+  JWT_EXPIRES_IN: string;
 }
 
 export function validateEnv(
