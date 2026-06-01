@@ -9,9 +9,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
-import { TransactionManager } from '../../common/decorators/transaction-manager.decorator';
-import { Transactional } from '../../common/decorators/transactional.decorator';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,13 +27,11 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
-  @Transactional()
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateTaskDto,
-    @TransactionManager() manager: EntityManager,
   ): Promise<Task> {
-    return this.tasksService.create(user.userId, dto, manager);
+    return this.tasksService.create(user.userId, dto);
   }
 
   @Get()
@@ -63,22 +58,16 @@ export class TasksController {
 
   @Patch(':id')
   @UseGuards(OwnershipGuard)
-  @Transactional()
   update(
     @Param('id') id: string,
     @Body() dto: UpdateTaskDto,
-    @TransactionManager() manager: EntityManager,
   ): Promise<Task> {
-    return this.tasksService.update(id, dto, manager);
+    return this.tasksService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(OwnershipGuard)
-  @Transactional()
-  remove(
-    @Param('id') id: string,
-    @TransactionManager() manager: EntityManager,
-  ): Promise<void> {
-    return this.tasksService.archive(id, manager);
+  remove(@Param('id') id: string): Promise<void> {
+    return this.tasksService.archive(id);
   }
 }

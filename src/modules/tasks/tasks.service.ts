@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
+import { Transactional } from '@nestjs-cls/transactional';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
@@ -17,20 +17,14 @@ import { TasksRepository } from './tasks.repository';
 export class TasksService {
   constructor(private readonly tasksRepository: TasksRepository) {}
 
-  create(
-    ownerId: string,
-    dto: CreateTaskDto,
-    manager?: EntityManager,
-  ): Promise<Task> {
-    return this.tasksRepository.create(
-      {
-        title: dto.title,
-        description: dto.description ?? null,
-        status: dto.status ?? TaskStatus.Todo,
-        ownerId,
-      },
-      manager,
-    );
+  @Transactional()
+  create(ownerId: string, dto: CreateTaskDto): Promise<Task> {
+    return this.tasksRepository.create({
+      title: dto.title,
+      description: dto.description ?? null,
+      status: dto.status ?? TaskStatus.Todo,
+      ownerId,
+    });
   }
 
   async findAll(
@@ -62,35 +56,33 @@ export class TasksService {
     return this.paginate(items, total, page, limit);
   }
 
-  async findOne(id: string, manager?: EntityManager): Promise<Task> {
-    const task = await this.tasksRepository.findById(id, manager);
+  async findOne(id: string): Promise<Task> {
+    const task = await this.tasksRepository.findById(id);
     if (!task) {
       throw new NotFoundException('task_not_found');
     }
     return task;
   }
 
-  async update(
-    id: string,
-    dto: UpdateTaskDto,
-    manager?: EntityManager,
-  ): Promise<Task> {
-    const task = await this.findOne(id, manager);
+  @Transactional()
+  async update(id: string, dto: UpdateTaskDto): Promise<Task> {
+    const task = await this.findOne(id);
     if (task.archivedAt) {
       throw new ConflictException('task_archived');
     }
     Object.assign(task, dto);
-    await this.tasksRepository.save(task, manager);
-    return this.findOne(id, manager);
+    await this.tasksRepository.save(task);
+    return this.findOne(id);
   }
 
-  async archive(id: string, manager?: EntityManager): Promise<void> {
-    const task = await this.findOne(id, manager);
+  @Transactional()
+  async archive(id: string): Promise<void> {
+    const task = await this.findOne(id);
     if (task.archivedAt) {
       throw new ConflictException('task_already_archived');
     }
     task.archivedAt = new Date();
-    await this.tasksRepository.save(task, manager);
+    await this.tasksRepository.save(task);
   }
 
   retentionCutoff(): Date {

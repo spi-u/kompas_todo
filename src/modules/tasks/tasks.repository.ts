@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import { TransactionalAdapterTypeOrm } from '@nestjs-cls/transactional-adapter-typeorm';
 import {
-  EntityManager,
   FindOptionsWhere,
   IsNull,
   LessThan,
@@ -20,16 +20,11 @@ interface ListOptions {
 @Injectable()
 export class TasksRepository {
   constructor(
-    @InjectRepository(Task)
-    private readonly repository: Repository<Task>,
+    private readonly txHost: TransactionHost<TransactionalAdapterTypeOrm>,
   ) {}
 
-  findAndCountActive(
-    ownerId: string,
-    options: ListOptions,
-    manager?: EntityManager,
-  ) {
-    return this.scope(manager).findAndCount({
+  findAndCountActive(ownerId: string, options: ListOptions) {
+    return this.repository.findAndCount({
       where: this.ownerWhere(ownerId, options.status, IsNull()),
       order: { createdAt: 'DESC' },
       skip: options.skip,
@@ -37,12 +32,8 @@ export class TasksRepository {
     });
   }
 
-  findAndCountArchived(
-    ownerId: string,
-    options: ListOptions & { cutoff: Date },
-    manager?: EntityManager,
-  ) {
-    return this.scope(manager).findAndCount({
+  findAndCountArchived(ownerId: string, options: ListOptions & { cutoff: Date }) {
+    return this.repository.findAndCount({
       where: this.ownerWhere(
         ownerId,
         options.status,
@@ -54,25 +45,21 @@ export class TasksRepository {
     });
   }
 
-  findById(id: string, manager?: EntityManager) {
-    return this.scope(manager).findOne({ where: { id } });
+  findById(id: string) {
+    return this.repository.findOne({ where: { id } });
   }
 
-  create(
-    data: Pick<Task, 'title' | 'description' | 'status' | 'ownerId'>,
-    manager?: EntityManager,
-  ) {
-    const repository = this.scope(manager);
-    const task = repository.create(data);
-    return repository.save(task);
+  create(data: Pick<Task, 'title' | 'description' | 'status' | 'ownerId'>) {
+    const task = this.repository.create(data);
+    return this.repository.save(task);
   }
 
-  save(task: Task, manager?: EntityManager) {
-    return this.scope(manager).save(task);
+  save(task: Task) {
+    return this.repository.save(task);
   }
 
-  async deleteExpired(cutoff: Date, manager?: EntityManager): Promise<number> {
-    const result = await this.scope(manager).delete({
+  async deleteExpired(cutoff: Date): Promise<number> {
+    const result = await this.repository.delete({
       archivedAt: LessThan(cutoff),
     });
     return result.affected ?? 0;
@@ -90,7 +77,7 @@ export class TasksRepository {
     return where;
   }
 
-  private scope(manager?: EntityManager): Repository<Task> {
-    return manager ? manager.getRepository(Task) : this.repository;
+  private get repository(): Repository<Task> {
+    return this.txHost.tx.getRepository(Task);
   }
 }
