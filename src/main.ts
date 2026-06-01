@@ -7,6 +7,7 @@ import {
 } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { SocketIoAdapter } from './common/adapters/socket-io.adapter';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -25,6 +26,8 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+
+  app.useWebSocketAdapter(new SocketIoAdapter(app));
 
   app.useGlobalFilters(new AllExceptionsFilter());
 

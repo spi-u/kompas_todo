@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { registerMockTransactionHost } from '../../test/mock-transaction-host';
 import { Task } from './entities/task.entity';
 import { TaskStatus } from './enums/task-status.enum';
+import { TasksGateway } from './tasks.gateway';
 import { TasksRepository } from './tasks.repository';
 import { TasksService } from './tasks.service';
 
@@ -14,6 +15,7 @@ describe('TasksService', () => {
     save: jest.fn(),
     findAndCountActive: jest.fn(),
   };
+  const gateway = { emitTaskStatus: jest.fn() };
 
   beforeAll(() => registerMockTransactionHost());
 
@@ -23,6 +25,7 @@ describe('TasksService', () => {
       providers: [
         TasksService,
         { provide: TasksRepository, useValue: repository },
+        { provide: TasksGateway, useValue: gateway },
       ],
     }).compile();
     service = module.get(TasksService);
@@ -59,6 +62,32 @@ describe('TasksService', () => {
     await expect(service.archive('1')).rejects.toBeInstanceOf(
       ConflictException,
     );
+  });
+
+  it('update emits a status event when status changes', async () => {
+    repository.findById
+      .mockResolvedValueOnce({ id: '1', archivedAt: null, status: TaskStatus.Todo })
+      .mockResolvedValueOnce({
+        id: '1',
+        ownerId: 'owner-1',
+        status: TaskStatus.Done,
+      });
+    repository.save.mockResolvedValue(undefined);
+    await service.update('1', { status: TaskStatus.Done });
+    expect(gateway.emitTaskStatus).toHaveBeenCalledWith('owner-1', {
+      id: '1',
+      ownerId: 'owner-1',
+      status: TaskStatus.Done,
+    });
+  });
+
+  it('update does not emit when status is unchanged', async () => {
+    repository.findById
+      .mockResolvedValueOnce({ id: '1', archivedAt: null, status: TaskStatus.Todo })
+      .mockResolvedValueOnce({ id: '1', ownerId: 'owner-1', status: TaskStatus.Todo });
+    repository.save.mockResolvedValue(undefined);
+    await service.update('1', { title: 'X' });
+    expect(gateway.emitTaskStatus).not.toHaveBeenCalled();
   });
 
   it('findAll builds pagination meta', async () => {

@@ -11,11 +11,15 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { Task } from './entities/task.entity';
 import { TaskStatus } from './enums/task-status.enum';
 import { ARCHIVE_RETENTION_DAYS } from './tasks.constants';
+import { TasksGateway } from './tasks.gateway';
 import { TasksRepository } from './tasks.repository';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly tasksRepository: TasksRepository) {}
+  constructor(
+    private readonly tasksRepository: TasksRepository,
+    private readonly tasksGateway: TasksGateway,
+  ) {}
 
   @Transactional()
   create(ownerId: string, dto: CreateTaskDto): Promise<Task> {
@@ -70,9 +74,14 @@ export class TasksService {
     if (task.archivedAt) {
       throw new ConflictException('task_archived');
     }
+    const previousStatus = task.status;
     Object.assign(task, dto);
     await this.tasksRepository.save(task);
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    if (updated.status !== previousStatus) {
+      this.tasksGateway.emitTaskStatus(updated.ownerId, updated);
+    }
+    return updated;
   }
 
   @Transactional()
